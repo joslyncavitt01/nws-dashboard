@@ -279,14 +279,29 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
       var zipIdx = r[0], ym = r[1], c = r[2];
       if (ym >= start && ym <= end) weights[zipIdx] = (weights[zipIdx] || 0) + c;
     });
-    var maxW = 1;
-    Object.keys(weights).forEach(function(k) { if (weights[k] > maxW) maxW = weights[k]; });
-    var points = Object.keys(weights).map(function(k) {
+    // Bin into a coarse spatial grid BEFORE building heat points. Leaflet.heat sums every
+    // point that lands in the same screen-pixel cell, so with tens of thousands of individual
+    // addresses, Austin's sheer point DENSITY (not just weight) blows past any per-point max --
+    // that's what was making the core saturate to a huge solid-red plateau. Pre-binning collapses
+    // that density into one value per ~1.5km cell so the color scale reflects real concentration.
+    var GRID = 0.015;
+    var bins = {};
+    Object.keys(weights).forEach(function(k) {
       var coord = data.coords[k];
-      return [coord[0], coord[1], weights[k]];
+      var gx = Math.floor(coord[0] / GRID), gy = Math.floor(coord[1] / GRID);
+      var key = gx + ',' + gy;
+      if (!bins[key]) bins[key] = { lat: (gx + 0.5) * GRID, lon: (gy + 0.5) * GRID, sum: 0 };
+      bins[key].sum += weights[k];
+    });
+    // log-compress: raw counts per bin are heavily right-skewed (Austin core vs everywhere else)
+    var maxW = 1;
+    Object.keys(bins).forEach(function(k) { var v = Math.log(bins[k].sum + 1); if (v > maxW) maxW = v; });
+    var points = Object.keys(bins).map(function(k) {
+      var b = bins[k];
+      return [b.lat, b.lon, Math.log(b.sum + 1)];
     });
     if (currentHeatLayer) map.removeLayer(currentHeatLayer);
-    currentHeatLayer = L.heatLayer(points, { radius: 24, blur: 20, maxZoom: 6, max: maxW }).addTo(map);
+    currentHeatLayer = L.heatLayer(points, { radius: 7, blur: 5, maxZoom: 6, max: maxW }).addTo(map);
     updateNote(data, start, end);
   }
   function activateHeat(key) {
