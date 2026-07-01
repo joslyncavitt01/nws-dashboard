@@ -14,6 +14,7 @@
     };
 })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -74,10 +75,17 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
 .topic-btn:hover{background:#eee;}
 .topic-btn.active{background:#dd5928;color:#fff;border-color:#c44c1f;}
 #map-title{position:fixed;top:66px;left:50%;transform:translateX(-50%);background:white;border:1px solid #ccc;border-radius:6px;padding:5px 16px;font-family:'Jost',Arial,sans-serif;font-size:13px;font-weight:700;color:#dd5928;z-index:1000;box-shadow:2px 2px 6px rgba(0,0,0,.2);max-width:640px;text-align:center;}
+#range-panel{position:fixed;top:106px;left:50%;transform:translateX(-50%);z-index:1000;background:white;border:1px solid #ccc;border-radius:8px;padding:10px 16px;box-shadow:2px 2px 6px rgba(0,0,0,.2);font-family:'Jost',Arial,sans-serif;font-size:12.5px;color:#555;text-align:center;display:none;max-width:92vw;}
+#range-panel label{font-weight:600;margin-right:4px;}
+#range-panel input[type=month]{font-family:'Jost',Arial,sans-serif;font-size:12.5px;border:1px solid #ccc;border-radius:4px;padding:3px 6px;}
+#range-panel .quick-btn{font-size:11px;background:#f4f4f4;border:1px solid #ddd;border-radius:4px;padding:3px 8px;cursor:pointer;margin-left:3px;}
+#range-panel .quick-btn:hover{background:#eee;}
+#range-note{font-size:10.5px;color:#888;font-style:italic;margin-top:6px;line-height:1.4;}
 @media(max-width:768px){
   #topic-bar{top:8px;padding:4px;gap:3px;}
   .topic-btn{font-size:10.5px;padding:5px 8px;}
   #map-title{top:56px;font-size:10px;padding:4px 10px;max-width:calc(100vw - 30px);}
+  #range-panel{top:94px;font-size:10.5px;padding:8px 10px;}
   .leaflet-control-minimap{display:none!important;}
   #legend-box{max-width:calc(100vw - 56px)!important;}
   #legend-btn{bottom:10px!important;left:10px!important;}
@@ -145,6 +153,16 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
   <button class="topic-btn" data-topic="tsc">Tractor Supply</button>
   <button class="topic-btn" data-topic="retail">All Retail</button>
   <button class="topic-btn" data-topic="all">Everything</button>
+  <button class="topic-btn" data-topic="adopters">Adopters</button>
+  <button class="topic-btn" data-topic="fosters">Fosters</button>
+</div>
+<div id="range-panel">
+  <label for="range-start">From</label><input type="month" id="range-start">
+  <label for="range-end" style="margin-left:8px;">To</label><input type="month" id="range-end">
+  <button class="quick-btn" data-quick="all">All time</button>
+  <button class="quick-btn" data-quick="12mo">Last 12 mo</button>
+  <button class="quick-btn" data-quick="ytd">This year</button>
+  <div id="range-note"></div>
 </div>
 <div id="legend-btn" style="position:fixed;bottom:40px;left:40px;z-index:1001;background:white;border:1px solid #ccc;border-radius:20px;padding:6px 14px;font-family:'Jost',Arial,sans-serif;font-size:12px;cursor:pointer;box-shadow:2px 2px 6px rgba(0,0,0,.2);user-select:none;">&#9650; Show Key</div>
 <div id="legend-box" style="position:fixed;bottom:84px;left:40px;background:white;border:1px solid #ccc;border-radius:6px;padding:12px 16px;font-family:'Jost',Arial,sans-serif;font-size:13px;z-index:1000;box-shadow:2px 2px 6px rgba(0,0,0,.2);max-width:310px;max-height:calc(100vh - 140px);overflow-y:auto;">
@@ -195,6 +213,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
     all: ['BFAS Partner Shelters','Transfer Partners','APA! Facilities','Petco Stores','PetSmart Stores','Tractor Supply Stores','Petsense Stores','PetVet Clinics (at Tractor Supply)','VIP Petcare Clinics']
   };
   var ALL_NAMES = TOPICS.all;
+  var HEAT_TOPICS = { adopters: { url: 'adopters_heat.json', label: 'adoptions' }, fosters: { url: 'fosters_heat.json', label: 'foster placements' } };
 
   function getOverlays() {
     var key = Object.keys(window).find(function(k){ return /^layer_control_.*_layers$/.test(k); });
@@ -206,18 +225,141 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
     });
     return mapKey ? window[mapKey] : null;
   }
+
+  // ---- heatmap (Adopters / Fosters) ----
+  var heatCache = {}, rangeState = {}, currentHeatLayer = null, currentHeatKey = null;
+  var rangePanel = document.getElementById('range-panel');
+  var rangeStartInput = document.getElementById('range-start');
+  var rangeEndInput = document.getElementById('range-end');
+  var rangeNote = document.getElementById('range-note');
+
+  function ymToStr(ym) { var y = Math.floor(ym / 100), m = ym % 100; return y + '-' + (m < 10 ? '0' + m : m); }
+  function strToYm(s) { if (!s) return null; var p = s.split('-'); return parseInt(p[0], 10) * 100 + parseInt(p[1], 10); }
+  function addMonths(ym, delta) {
+    var y = Math.floor(ym / 100), m = ym % 100;
+    var total = y * 12 + (m - 1) + delta;
+    var ny = Math.floor(total / 12), nm = (total % 12) + 1;
+    return ny * 100 + nm;
+  }
+  function dataBounds(data) {
+    var all = data.records.map(function(r){ return r[1]; })
+      .concat(data.otherByMonth.map(function(p){ return p[0]; }))
+      .concat(data.unknownByMonth.map(function(p){ return p[0]; }));
+    return { min: Math.min.apply(null, all), max: Math.max.apply(null, all) };
+  }
+  function sumInRange(pairs, start, end) {
+    var s = 0;
+    pairs.forEach(function(p) { if (p[0] >= start && p[0] <= end) s += p[1]; });
+    return s;
+  }
+  function updateNote(data, start, end) {
+    var label = HEAT_TOPICS[currentHeatKey].label;
+    var other = sumInRange(data.otherByMonth, start, end);
+    var unknown = sumInRange(data.unknownByMonth, start, end);
+    var txShown = 0;
+    data.records.forEach(function(r) { if (r[1] >= start && r[1] <= end) txShown += r[2]; });
+    var note = txShown.toLocaleString() + ' Texas ' + label + ' shown, ' + ymToStr(start) + ' to ' + ymToStr(end) + '.';
+    if (other || unknown) {
+      note += ' Not shown: ' + other.toLocaleString() + ' ' + label + ' from outside Texas';
+      if (unknown) note += ' and ' + unknown.toLocaleString() + ' with no zip code on file';
+      note += '.';
+    }
+    rangeNote.textContent = note;
+  }
+  function renderHeat() {
+    var map = getMap();
+    var data = heatCache[currentHeatKey];
+    if (!map || !data) return;
+    var start = strToYm(rangeStartInput.value);
+    var end = strToYm(rangeEndInput.value);
+    if (start == null || end == null) return;
+    rangeState[currentHeatKey] = { start: start, end: end };
+    var weights = {};
+    data.records.forEach(function(r) {
+      var zipIdx = r[0], ym = r[1], c = r[2];
+      if (ym >= start && ym <= end) weights[zipIdx] = (weights[zipIdx] || 0) + c;
+    });
+    var maxW = 1;
+    Object.keys(weights).forEach(function(k) { if (weights[k] > maxW) maxW = weights[k]; });
+    var points = Object.keys(weights).map(function(k) {
+      var coord = data.coords[k];
+      return [coord[0], coord[1], weights[k]];
+    });
+    if (currentHeatLayer) map.removeLayer(currentHeatLayer);
+    currentHeatLayer = L.heatLayer(points, { radius: 24, blur: 20, maxZoom: 10, max: maxW }).addTo(map);
+    updateNote(data, start, end);
+  }
+  function activateHeat(key) {
+    currentHeatKey = key;
+    rangePanel.style.display = 'block';
+    if (heatCache[key]) {
+      var b = rangeState[key] || dataBounds(heatCache[key]);
+      rangeStartInput.value = ymToStr(b.start);
+      rangeEndInput.value = ymToStr(b.end);
+      renderHeat();
+      return;
+    }
+    rangeNote.textContent = 'Loading ' + HEAT_TOPICS[key].label + ' data...';
+    fetch(HEAT_TOPICS[key].url).then(function(r) { return r.json(); }).then(function(data) {
+      heatCache[key] = data;
+      if (currentHeatKey !== key) return;
+      var bounds = dataBounds(data);
+      rangeStartInput.min = rangeEndInput.min = ymToStr(bounds.min);
+      rangeStartInput.max = rangeEndInput.max = ymToStr(bounds.max);
+      rangeStartInput.value = ymToStr(bounds.min);
+      rangeEndInput.value = ymToStr(bounds.max);
+      renderHeat();
+    }).catch(function() {
+      rangeNote.textContent = HEAT_TOPICS[key].label + ' data unavailable -- internet connection required.';
+    });
+  }
+  function deactivateHeat() {
+    var map = getMap();
+    if (currentHeatLayer && map) { map.removeLayer(currentHeatLayer); currentHeatLayer = null; }
+    currentHeatKey = null;
+    rangePanel.style.display = 'none';
+  }
+  rangeStartInput.addEventListener('change', renderHeat);
+  rangeEndInput.addEventListener('change', renderHeat);
+  document.querySelectorAll('.quick-btn').forEach(function(b) {
+    b.addEventListener('click', function() {
+      var data = heatCache[currentHeatKey];
+      if (!data) return;
+      var bounds = dataBounds(data);
+      var quick = b.getAttribute('data-quick');
+      if (quick === 'all') {
+        rangeStartInput.value = ymToStr(bounds.min);
+        rangeEndInput.value = ymToStr(bounds.max);
+      } else if (quick === '12mo') {
+        rangeEndInput.value = ymToStr(bounds.max);
+        rangeStartInput.value = ymToStr(addMonths(bounds.max, -11));
+      } else if (quick === 'ytd') {
+        var year = Math.floor(bounds.max / 100);
+        rangeStartInput.value = ymToStr(year * 100 + 1);
+        rangeEndInput.value = ymToStr(bounds.max);
+      }
+      renderHeat();
+    });
+  });
+
   function applyTopic(topicKey) {
     var overlays = getOverlays();
     var map = getMap();
     if (!overlays || !map) { setTimeout(function(){ applyTopic(topicKey); }, 150); return; }
-    var wanted = TOPICS[topicKey] || [];
-    ALL_NAMES.forEach(function(name) {
-      var fg = overlays[name];
-      if (!fg) return;
-      var on = wanted.indexOf(name) !== -1;
-      if (on && !map.hasLayer(fg)) map.addLayer(fg);
-      if (!on && map.hasLayer(fg)) map.removeLayer(fg);
-    });
+    if (HEAT_TOPICS[topicKey]) {
+      ALL_NAMES.forEach(function(name) { var fg = overlays[name]; if (fg && map.hasLayer(fg)) map.removeLayer(fg); });
+      activateHeat(topicKey);
+    } else {
+      deactivateHeat();
+      var wanted = TOPICS[topicKey] || [];
+      ALL_NAMES.forEach(function(name) {
+        var fg = overlays[name];
+        if (!fg) return;
+        var on = wanted.indexOf(name) !== -1;
+        if (on && !map.hasLayer(fg)) map.addLayer(fg);
+        if (!on && map.hasLayer(fg)) map.removeLayer(fg);
+      });
+    }
     document.querySelectorAll('.topic-btn').forEach(function(b) {
       b.classList.toggle('active', b.getAttribute('data-topic') === topicKey);
     });
