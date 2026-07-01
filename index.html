@@ -156,6 +156,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
   <button class="topic-btn" data-topic="adopters">Adopters</button>
   <button class="topic-btn" data-topic="fosters">Fosters</button>
   <button class="topic-btn" data-topic="volunteers">Volunteers</button>
+  <button class="topic-btn" data-topic="donors">Donors</button>
 </div>
 <div id="range-panel">
   <label for="range-start">From</label><input type="month" id="range-start">
@@ -214,7 +215,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
     all: ['BFAS Partner Shelters','Transfer Partners','APA! Facilities','Petco Stores','PetSmart Stores','Tractor Supply Stores','Petsense Stores','PetVet Clinics (at Tractor Supply)','VIP Petcare Clinics']
   };
   var ALL_NAMES = TOPICS.all;
-  var HEAT_TOPICS = { adopters: { url: 'adopters_heat.json', label: 'adoptions' }, fosters: { url: 'fosters_heat.json', label: 'foster placements' }, volunteers: { url: 'volunteers_heat.json', label: 'volunteer shifts' } };
+  var HEAT_TOPICS = { adopters: { url: 'adopters_heat.json', label: 'adoptions' }, fosters: { url: 'fosters_heat.json', label: 'foster placements' }, volunteers: { url: 'volunteers_heat.json', label: 'volunteer shifts' }, donors: { url: 'donors_heat.json', label: 'household gifts (year-level data)' } };
 
   function getOverlays() {
     var key = Object.keys(window).find(function(k){ return /^layer_control_.*_layers$/.test(k); });
