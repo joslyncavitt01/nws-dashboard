@@ -286,7 +286,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
       return [coord[0], coord[1], weights[k]];
     });
     if (currentHeatLayer) map.removeLayer(currentHeatLayer);
-    currentHeatLayer = L.heatLayer(points, { radius: 24, blur: 20, maxZoom: 10, max: maxW }).addTo(map);
+    currentHeatLayer = L.heatLayer(points, { radius: 24, blur: 20, maxZoom: 6, max: maxW }).addTo(map);
     updateNote(data, start, end);
   }
   function activateHeat(key) {
