@@ -293,15 +293,19 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
       if (!bins[key]) bins[key] = { lat: (gx + 0.5) * GRID, lon: (gy + 0.5) * GRID, sum: 0 };
       bins[key].sum += weights[k];
     });
-    // log-compress: raw counts per bin are heavily right-skewed (Austin core vs everywhere else)
-    var maxW = 1;
-    Object.keys(bins).forEach(function(k) { var v = Math.log(bins[k].sum + 1); if (v > maxW) maxW = v; });
+    // Use the raw (untransformed) bin sums -- log/sqrt compression flattened the whole metro
+    // into a uniform plateau of deep red with no internal gradient. Calibrate `max` well above
+    // any single bin's peak: at low zoom Leaflet.heat's own internal pixel-grid re-merges several
+    // adjacent bins together, so a handful of nearby hot bins can otherwise still blow past the
+    // ceiling and saturate a wide area solid red.
+    var peakBin = 1;
+    Object.keys(bins).forEach(function(k) { if (bins[k].sum > peakBin) peakBin = bins[k].sum; });
     var points = Object.keys(bins).map(function(k) {
       var b = bins[k];
-      return [b.lat, b.lon, Math.log(b.sum + 1)];
+      return [b.lat, b.lon, b.sum];
     });
     if (currentHeatLayer) map.removeLayer(currentHeatLayer);
-    currentHeatLayer = L.heatLayer(points, { radius: 7, blur: 5, maxZoom: 6, max: maxW }).addTo(map);
+    currentHeatLayer = L.heatLayer(points, { radius: 12, blur: 10, maxZoom: 6, max: peakBin * 6 }).addTo(map);
     updateNote(data, start, end);
   }
   function activateHeat(key) {
