@@ -228,7 +228,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
 
   // ---- heatmap (Adopters / Fosters) ----
   var heatCache = {}, rangeState = {}, currentHeatLayer = null, currentHeatKey = null;
-  var currentHeatPoints = null;
+  var currentHeatPoints = null, currentWeights = null, currentCoords = null;
   var HEAT_RADIUS = 12, HEAT_BLUR = 10;
   var rangePanel = document.getElementById('range-panel');
   var rangeStartInput = document.getElementById('range-start');
@@ -287,6 +287,44 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
     Object.keys(sums).forEach(function(k) { if (sums[k] > peak) peak = sums[k]; });
     return peak;
   }
+  // Bin size must shrink as you zoom in, or a grid sized for the statewide view becomes a
+  // visible checkerboard of evenly-spaced blobs once you're zoomed in close enough to see
+  // individual cells. Sizing it relative to the render cell (in real screen pixels at the
+  // CURRENT zoom) keeps the grid always finer than what's visible, at every zoom.
+  function computeGridStepDegrees(map) {
+    var zoom = map.getZoom();
+    var lat = map.getCenter().lat;
+    var metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
+    var cellPixels = (HEAT_RADIUS + HEAT_BLUR) / 2;
+    var binMeters = cellPixels * metersPerPixel * 0.6;
+    return {
+      lat: binMeters / 111320,
+      lon: binMeters / (111320 * Math.cos(lat * Math.PI / 180)),
+    };
+  }
+  function binWeights(map, weights, coords) {
+    var grid = computeGridStepDegrees(map);
+    var bins = {};
+    Object.keys(weights).forEach(function(k) {
+      var coord = coords[k];
+      var gx = Math.floor(coord[0] / grid.lat), gy = Math.floor(coord[1] / grid.lon);
+      var key = gx + ',' + gy;
+      if (!bins[key]) bins[key] = { lat: (gx + 0.5) * grid.lat, lon: (gy + 0.5) * grid.lon, sum: 0 };
+      bins[key].sum += weights[k];
+    });
+    // Use the raw (untransformed) bin sums -- log/sqrt compression flattened the whole metro
+    // into a uniform plateau of deep red with no internal gradient.
+    return Object.keys(bins).map(function(k) { var b = bins[k]; return [b.lat, b.lon, b.sum]; });
+  }
+  function rebuildHeatLayer() {
+    var map = getMap();
+    if (!map || !currentWeights || !currentCoords) return;
+    var points = binWeights(map, currentWeights, currentCoords);
+    currentHeatPoints = points;
+    var max = computeZoomAdjustedMax(map, points);
+    if (currentHeatLayer) map.removeLayer(currentHeatLayer);
+    currentHeatLayer = L.heatLayer(points, { radius: HEAT_RADIUS, blur: HEAT_BLUR, maxZoom: 6, max: max }).addTo(map);
+  }
   function renderHeat() {
     var map = getMap();
     var data = heatCache[currentHeatKey];
@@ -300,36 +338,10 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
       var zipIdx = r[0], ym = r[1], c = r[2];
       if (ym >= start && ym <= end) weights[zipIdx] = (weights[zipIdx] || 0) + c;
     });
-    // Bin into a coarse spatial grid BEFORE building heat points. Leaflet.heat sums every
-    // point that lands in the same screen-pixel cell, so with tens of thousands of individual
-    // addresses, Austin's sheer point DENSITY (not just weight) blows past any per-point max --
-    // that's what was making the core saturate to a huge solid-red plateau. Pre-binning collapses
-    // that density into one value per ~1.5km cell so the color scale reflects real concentration.
-    var GRID = 0.015;
-    var bins = {};
-    Object.keys(weights).forEach(function(k) {
-      var coord = data.coords[k];
-      var gx = Math.floor(coord[0] / GRID), gy = Math.floor(coord[1] / GRID);
-      var key = gx + ',' + gy;
-      if (!bins[key]) bins[key] = { lat: (gx + 0.5) * GRID, lon: (gy + 0.5) * GRID, sum: 0 };
-      bins[key].sum += weights[k];
-    });
-    // Use the raw (untransformed) bin sums -- log/sqrt compression flattened the whole metro
-    // into a uniform plateau of deep red with no internal gradient.
-    var points = Object.keys(bins).map(function(k) {
-      var b = bins[k];
-      return [b.lat, b.lon, b.sum];
-    });
-    currentHeatPoints = points;
-    var initialMax = computeZoomAdjustedMax(map, points);
-    if (currentHeatLayer) map.removeLayer(currentHeatLayer);
-    currentHeatLayer = L.heatLayer(points, { radius: HEAT_RADIUS, blur: HEAT_BLUR, maxZoom: 6, max: initialMax }).addTo(map);
+    currentWeights = weights;
+    currentCoords = data.coords;
+    rebuildHeatLayer();
     updateNote(data, start, end);
-  }
-  function rescaleHeatForZoom() {
-    var map = getMap();
-    if (!map || !currentHeatLayer || !currentHeatPoints) return;
-    currentHeatLayer.setOptions({ max: computeZoomAdjustedMax(map, currentHeatPoints) });
   }
   var heatZoomListenerBound = false;
   function activateHeat(key) {
@@ -337,7 +349,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
     rangePanel.style.display = 'block';
     if (!heatZoomListenerBound) {
       var map = getMap();
-      if (map) { map.on('zoomend', rescaleHeatForZoom); heatZoomListenerBound = true; }
+      if (map) { map.on('zoomend', rebuildHeatLayer); heatZoomListenerBound = true; }
     }
     if (heatCache[key]) {
       var b = rangeState[key] || dataBounds(heatCache[key]);
