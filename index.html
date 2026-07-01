@@ -228,6 +228,8 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
 
   // ---- heatmap (Adopters / Fosters) ----
   var heatCache = {}, rangeState = {}, currentHeatLayer = null, currentHeatKey = null;
+  var currentHeatPoints = null;
+  var HEAT_RADIUS = 12, HEAT_BLUR = 10;
   var rangePanel = document.getElementById('range-panel');
   var rangeStartInput = document.getElementById('range-start');
   var rangeEndInput = document.getElementById('range-end');
@@ -266,6 +268,25 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
     }
     rangeNote.textContent = note;
   }
+  // Mimic Leaflet.heat's own internal pixel-grid merge (cell size = (radius+blur)/2) at
+  // whatever zoom the map is CURRENTLY at, and return the resulting peak merged value. A
+  // fixed color ceiling looks right at one zoom and wrong at every other: zoomed out, many
+  // bins collapse into the same pixel and a low ceiling saturates to solid red; zoomed in,
+  // those same bins are far apart on screen and a ceiling sized for the merged case makes
+  // everything read as uniformly cool. Recomputing per zoom keeps contrast meaningful always.
+  function computeZoomAdjustedMax(map, points) {
+    var cell = (HEAT_RADIUS + HEAT_BLUR) / 2;
+    var zoom = map.getZoom();
+    var sums = {};
+    points.forEach(function(p) {
+      var pt = map.project([p[0], p[1]], zoom);
+      var key = Math.floor(pt.x / cell) + ',' + Math.floor(pt.y / cell);
+      sums[key] = (sums[key] || 0) + p[2];
+    });
+    var peak = 1;
+    Object.keys(sums).forEach(function(k) { if (sums[k] > peak) peak = sums[k]; });
+    return peak;
+  }
   function renderHeat() {
     var map = getMap();
     var data = heatCache[currentHeatKey];
@@ -294,23 +315,30 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
       bins[key].sum += weights[k];
     });
     // Use the raw (untransformed) bin sums -- log/sqrt compression flattened the whole metro
-    // into a uniform plateau of deep red with no internal gradient. Calibrate `max` well above
-    // any single bin's peak: at low zoom Leaflet.heat's own internal pixel-grid re-merges several
-    // adjacent bins together, so a handful of nearby hot bins can otherwise still blow past the
-    // ceiling and saturate a wide area solid red.
-    var peakBin = 1;
-    Object.keys(bins).forEach(function(k) { if (bins[k].sum > peakBin) peakBin = bins[k].sum; });
+    // into a uniform plateau of deep red with no internal gradient.
     var points = Object.keys(bins).map(function(k) {
       var b = bins[k];
       return [b.lat, b.lon, b.sum];
     });
+    currentHeatPoints = points;
+    var initialMax = computeZoomAdjustedMax(map, points);
     if (currentHeatLayer) map.removeLayer(currentHeatLayer);
-    currentHeatLayer = L.heatLayer(points, { radius: 12, blur: 10, maxZoom: 6, max: peakBin * 6 }).addTo(map);
+    currentHeatLayer = L.heatLayer(points, { radius: HEAT_RADIUS, blur: HEAT_BLUR, maxZoom: 6, max: initialMax }).addTo(map);
     updateNote(data, start, end);
   }
+  function rescaleHeatForZoom() {
+    var map = getMap();
+    if (!map || !currentHeatLayer || !currentHeatPoints) return;
+    currentHeatLayer.setOptions({ max: computeZoomAdjustedMax(map, currentHeatPoints) });
+  }
+  var heatZoomListenerBound = false;
   function activateHeat(key) {
     currentHeatKey = key;
     rangePanel.style.display = 'block';
+    if (!heatZoomListenerBound) {
+      var map = getMap();
+      if (map) { map.on('zoomend', rescaleHeatForZoom); heatZoomListenerBound = true; }
+    }
     if (heatCache[key]) {
       var b = rangeState[key] || dataBounds(heatCache[key]);
       rangeStartInput.value = ymToStr(b.start);
