@@ -84,6 +84,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
 #range-panel input[type=month]{font-family:'Jost',Arial,sans-serif;font-size:12.5px;border:1px solid #ccc;border-radius:4px;padding:3px 6px;}
 #range-panel .quick-btn{font-size:11px;background:#f4f4f4;border:1px solid #ddd;border-radius:4px;padding:3px 8px;cursor:pointer;margin-left:3px;}
 #range-panel .quick-btn:hover{background:#eee;}
+#range-panel .quick-btn.active{background:#dd5928;color:#fff;border-color:#c44c1f;}
 #range-note{font-size:10.5px;color:#888;font-style:italic;margin-top:6px;line-height:1.4;}
 @media(max-width:768px){
   #topic-bar{top:8px;padding:4px;gap:3px;}
@@ -373,6 +374,21 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
     updateNote(data, start, end);
   }
   var heatZoomListenerBound = false;
+  function syncActiveQuickButton() {
+    var data = heatCache[currentHeatKey];
+    document.querySelectorAll('.quick-btn').forEach(function(b) { b.classList.remove('active'); });
+    if (!data) return;
+    var bounds = dataBounds(data);
+    var start = strToYm(rangeStartInput.value), end = strToYm(rangeEndInput.value);
+    var match = null;
+    if (start === bounds.min && end === bounds.max) match = 'all';
+    else if (end === bounds.max && start === addMonths(bounds.max, -11)) match = '12mo';
+    else if (end === bounds.max && start === Math.floor(bounds.max / 100) * 100 + 1) match = 'ytd';
+    if (match) {
+      var btn = document.querySelector('.quick-btn[data-quick="' + match + '"]');
+      if (btn) btn.classList.add('active');
+    }
+  }
   function activateHeat(key) {
     currentHeatKey = key;
     rangePanel.style.display = 'block';
@@ -385,6 +401,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
       rangeStartInput.value = ymToStr(b.start);
       rangeEndInput.value = ymToStr(b.end);
       renderHeat();
+      syncActiveQuickButton();
       return;
     }
     rangeNote.textContent = 'Loading ' + HEAT_TOPICS[key].label + ' data...';
@@ -397,6 +414,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
       rangeStartInput.value = ymToStr(bounds.min);
       rangeEndInput.value = ymToStr(bounds.max);
       renderHeat();
+      syncActiveQuickButton();
     }).catch(function() {
       rangeNote.textContent = HEAT_TOPICS[key].label + ' data unavailable -- internet connection required.';
     });
@@ -407,8 +425,8 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
     currentHeatKey = null;
     rangePanel.style.display = 'none';
   }
-  rangeStartInput.addEventListener('change', renderHeat);
-  rangeEndInput.addEventListener('change', renderHeat);
+  rangeStartInput.addEventListener('change', function() { renderHeat(); syncActiveQuickButton(); });
+  rangeEndInput.addEventListener('change', function() { renderHeat(); syncActiveQuickButton(); });
   document.querySelectorAll('.quick-btn').forEach(function(b) {
     b.addEventListener('click', function() {
       var data = heatCache[currentHeatKey];
@@ -427,6 +445,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
         rangeEndInput.value = ymToStr(bounds.max);
       }
       renderHeat();
+      syncActiveQuickButton();
     });
   });
 
