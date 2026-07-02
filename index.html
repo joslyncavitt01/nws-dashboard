@@ -71,11 +71,15 @@
 <style>
 body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
 #topic-bar{position:fixed;top:15px;left:50%;transform:translateX(-50%);z-index:1000;background:white;border:1px solid #ccc;border-radius:8px;padding:6px;box-shadow:2px 2px 6px rgba(0,0,0,.2);display:flex;gap:4px;flex-wrap:wrap;max-width:92vw;justify-content:center;}
-.topic-btn{font-family:'Jost',Arial,sans-serif;font-size:12.5px;font-weight:600;color:#555;background:#f4f4f4;border:1px solid #ddd;border-radius:5px;padding:6px 12px;cursor:pointer;white-space:nowrap;}
+.topic-btn{font-family:'Jost',Arial,sans-serif;font-size:13.5px;font-weight:600;color:#555;background:#f4f4f4;border:1px solid #ddd;border-radius:5px;padding:7px 16px;cursor:pointer;white-space:nowrap;}
 .topic-btn:hover{background:#eee;}
 .topic-btn.active{background:#dd5928;color:#fff;border-color:#c44c1f;}
-#map-title{position:fixed;top:66px;left:50%;transform:translateX(-50%);background:white;border:1px solid #ccc;border-radius:6px;padding:5px 16px;font-family:'Jost',Arial,sans-serif;font-size:13px;font-weight:700;color:#dd5928;z-index:1000;box-shadow:2px 2px 6px rgba(0,0,0,.2);max-width:640px;text-align:center;}
-#range-panel{position:fixed;top:106px;left:50%;transform:translateX(-50%);z-index:1000;background:white;border:1px solid #ccc;border-radius:8px;padding:10px 16px;box-shadow:2px 2px 6px rgba(0,0,0,.2);font-family:'Jost',Arial,sans-serif;font-size:12.5px;color:#555;text-align:center;display:none;max-width:92vw;}
+#subtopic-bar{position:fixed;top:57px;left:50%;transform:translateX(-50%);z-index:1000;background:#faf6f3;border:1px solid #e2d6cd;border-radius:7px;padding:5px;box-shadow:2px 2px 6px rgba(0,0,0,.15);display:flex;gap:3px;flex-wrap:wrap;max-width:92vw;justify-content:center;}
+.subtopic-btn{font-family:'Jost',Arial,sans-serif;font-size:11.5px;font-weight:600;color:#8a6e5f;background:#fff;border:1px solid #e2d6cd;border-radius:4px;padding:5px 11px;cursor:pointer;white-space:nowrap;}
+.subtopic-btn:hover{background:#fdf1ea;}
+.subtopic-btn.active{background:#dd5928;color:#fff;border-color:#c44c1f;}
+#map-title{position:fixed;top:99px;left:50%;transform:translateX(-50%);background:white;border:1px solid #ccc;border-radius:6px;padding:5px 16px;font-family:'Jost',Arial,sans-serif;font-size:13px;font-weight:700;color:#dd5928;z-index:1000;box-shadow:2px 2px 6px rgba(0,0,0,.2);max-width:640px;text-align:center;}
+#range-panel{position:fixed;top:139px;left:50%;transform:translateX(-50%);z-index:1000;background:white;border:1px solid #ccc;border-radius:8px;padding:10px 16px;box-shadow:2px 2px 6px rgba(0,0,0,.2);font-family:'Jost',Arial,sans-serif;font-size:12.5px;color:#555;text-align:center;display:none;max-width:92vw;}
 #range-panel label{font-weight:600;margin-right:4px;}
 #range-panel input[type=month]{font-family:'Jost',Arial,sans-serif;font-size:12.5px;border:1px solid #ccc;border-radius:4px;padding:3px 6px;}
 #range-panel .quick-btn{font-size:11px;background:#f4f4f4;border:1px solid #ddd;border-radius:4px;padding:3px 8px;cursor:pointer;margin-left:3px;}
@@ -83,9 +87,11 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
 #range-note{font-size:10.5px;color:#888;font-style:italic;margin-top:6px;line-height:1.4;}
 @media(max-width:768px){
   #topic-bar{top:8px;padding:4px;gap:3px;}
-  .topic-btn{font-size:10.5px;padding:5px 8px;}
-  #map-title{top:56px;font-size:10px;padding:4px 10px;max-width:calc(100vw - 30px);}
-  #range-panel{top:94px;font-size:10.5px;padding:8px 10px;}
+  .topic-btn{font-size:12px;padding:6px 12px;}
+  #subtopic-bar{top:44px;padding:4px;gap:2px;}
+  .subtopic-btn{font-size:10px;padding:4px 8px;}
+  #map-title{top:82px;font-size:10px;padding:4px 10px;max-width:calc(100vw - 30px);}
+  #range-panel{top:120px;font-size:10.5px;padding:8px 10px;}
   .leaflet-control-minimap{display:none!important;}
   #legend-box{max-width:calc(100vw - 56px)!important;}
   #legend-btn{bottom:10px!important;left:10px!important;}
@@ -147,17 +153,11 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
 </script>
 <div id="map-title">New World Screwworm Response Dashboard &mdash; APA! Partner Shelters &amp; Pet Retail Partners</div>
 <div id="topic-bar">
-  <button class="topic-btn" data-topic="overview">Shelters</button>
-  <button class="topic-btn" data-topic="petco">Petco</button>
-  <button class="topic-btn" data-topic="petsmart">PetSmart</button>
-  <button class="topic-btn" data-topic="tsc">Tractor Supply</button>
-  <button class="topic-btn" data-topic="retail">All Retail</button>
-  <button class="topic-btn" data-topic="all">Everything</button>
-  <button class="topic-btn" data-topic="adopters">Adopters</button>
-  <button class="topic-btn" data-topic="fosters">Fosters</button>
-  <button class="topic-btn" data-topic="volunteers">Volunteers</button>
-  <button class="topic-btn" data-topic="donors">Donors</button>
+  <button class="topic-btn" data-primary="shelters">Shelters</button>
+  <button class="topic-btn" data-primary="retail">Retail Locations</button>
+  <button class="topic-btn" data-primary="people">People</button>
 </div>
+<div id="subtopic-bar"></div>
 <div id="range-panel">
   <label for="range-start">From</label><input type="month" id="range-start">
   <label for="range-end" style="margin-left:8px;">To</label><input type="month" id="range-end">
@@ -206,15 +206,34 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
 </script>
 <script>
 (function(){
-  var TOPICS = {
-    overview: ['BFAS Partner Shelters','Transfer Partners','APA! Facilities'],
-    petco: ['Petco Stores'],
-    petsmart: ['PetSmart Stores'],
-    tsc: ['Tractor Supply Stores','Petsense Stores','PetVet Clinics (at Tractor Supply)','VIP Petcare Clinics'],
-    retail: ['Petco Stores','PetSmart Stores','Tractor Supply Stores','Petsense Stores'],
-    all: ['BFAS Partner Shelters','Transfer Partners','APA! Facilities','Petco Stores','PetSmart Stores','Tractor Supply Stores','Petsense Stores','PetVet Clinics (at Tractor Supply)','VIP Petcare Clinics']
+  var PRIMARY = [
+    { key: 'shelters', label: 'Shelters' },
+    { key: 'retail', label: 'Retail Locations' },
+    { key: 'people', label: 'People' }
+  ];
+  var SUBTOPICS = {
+    shelters: [
+      { key: 'all-shelters', label: 'All Shelters', layers: ['BFAS Partner Shelters', 'Transfer Partners', 'APA! Facilities'] },
+      { key: 'bfas', label: 'BFAS Partners', layers: ['BFAS Partner Shelters'] },
+      { key: 'transfer', label: 'Transfer Partners', layers: ['Transfer Partners'] }
+    ],
+    retail: [
+      { key: 'all-retail', label: 'All Retail', layers: ['Petco Stores', 'PetSmart Stores', 'Tractor Supply Stores', 'Petsense Stores'] },
+      { key: 'petco', label: 'Petco', layers: ['Petco Stores'] },
+      { key: 'petsmart', label: 'PetSmart', layers: ['PetSmart Stores'] },
+      { key: 'tsc', label: 'Tractor Supply', layers: ['Tractor Supply Stores', 'Petsense Stores', 'PetVet Clinics (at Tractor Supply)', 'VIP Petcare Clinics'] }
+    ],
+    people: [
+      { key: 'adopters', label: 'Adopters', heat: 'adopters' },
+      { key: 'fosters', label: 'Fosters', heat: 'fosters' },
+      { key: 'volunteers', label: 'Volunteers', heat: 'volunteers' },
+      { key: 'donors', label: 'Donors', heat: 'donors' }
+    ]
   };
-  var ALL_NAMES = TOPICS.all;
+  var ALL_NAMES = [];
+  ['shelters', 'retail'].forEach(function(p) {
+    SUBTOPICS[p].forEach(function(s) { s.layers.forEach(function(n) { if (ALL_NAMES.indexOf(n) === -1) ALL_NAMES.push(n); }); });
+  });
   var HEAT_TOPICS = { adopters: { url: 'adopters_heat.json', label: 'adoptions' }, fosters: { url: 'fosters_heat.json', label: 'foster placements' }, volunteers: { url: 'volunteers_heat.json', label: 'volunteer shifts' }, donors: { url: 'donors_heat.json', label: 'household gifts (year-level data)' } };
 
   function getOverlays() {
@@ -411,32 +430,62 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
     });
   });
 
-  function applyTopic(topicKey) {
+  var currentPrimary = null;
+  var lastSub = {};
+  var subtopicBar = document.getElementById('subtopic-bar');
+
+  function applySub(primaryKey, subKey) {
+    var sub = SUBTOPICS[primaryKey].filter(function(s) { return s.key === subKey; })[0];
+    if (!sub) return;
+    lastSub[primaryKey] = subKey;
     var overlays = getOverlays();
     var map = getMap();
-    if (!overlays || !map) { setTimeout(function(){ applyTopic(topicKey); }, 150); return; }
-    if (HEAT_TOPICS[topicKey]) {
+    if (!overlays || !map) { setTimeout(function() { applySub(primaryKey, subKey); }, 150); return; }
+    if (sub.heat) {
       ALL_NAMES.forEach(function(name) { var fg = overlays[name]; if (fg && map.hasLayer(fg)) map.removeLayer(fg); });
-      activateHeat(topicKey);
+      activateHeat(sub.heat);
     } else {
       deactivateHeat();
-      var wanted = TOPICS[topicKey] || [];
       ALL_NAMES.forEach(function(name) {
         var fg = overlays[name];
         if (!fg) return;
-        var on = wanted.indexOf(name) !== -1;
+        var on = sub.layers.indexOf(name) !== -1;
         if (on && !map.hasLayer(fg)) map.addLayer(fg);
         if (!on && map.hasLayer(fg)) map.removeLayer(fg);
       });
     }
-    document.querySelectorAll('.topic-btn').forEach(function(b) {
-      b.classList.toggle('active', b.getAttribute('data-topic') === topicKey);
+    subtopicBar.querySelectorAll('.subtopic-btn').forEach(function(b) {
+      b.classList.toggle('active', b.getAttribute('data-sub') === subKey);
     });
   }
+
+  function renderSubtopicBar(primaryKey) {
+    subtopicBar.innerHTML = '';
+    SUBTOPICS[primaryKey].forEach(function(sub) {
+      var b = document.createElement('button');
+      b.className = 'subtopic-btn';
+      b.setAttribute('data-sub', sub.key);
+      b.textContent = sub.label;
+      b.addEventListener('click', function() { applySub(primaryKey, sub.key); });
+      subtopicBar.appendChild(b);
+    });
+  }
+
+  function applyPrimary(primaryKey) {
+    if (primaryKey === currentPrimary) return;
+    currentPrimary = primaryKey;
+    renderSubtopicBar(primaryKey);
+    document.querySelectorAll('.topic-btn').forEach(function(b) {
+      b.classList.toggle('active', b.getAttribute('data-primary') === primaryKey);
+    });
+    var subKey = lastSub[primaryKey] || SUBTOPICS[primaryKey][0].key;
+    applySub(primaryKey, subKey);
+  }
+
   document.querySelectorAll('.topic-btn').forEach(function(b) {
-    b.addEventListener('click', function() { applyTopic(b.getAttribute('data-topic')); });
+    b.addEventListener('click', function() { applyPrimary(b.getAttribute('data-primary')); });
   });
-  function boot() { applyTopic('overview'); }
+  function boot() { applyPrimary('shelters'); }
   if (document.readyState === 'complete') { setTimeout(boot, 300); }
   else { window.addEventListener('load', function(){ setTimeout(boot, 300); }); }
 })();
