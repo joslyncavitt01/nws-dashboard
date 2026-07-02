@@ -228,14 +228,15 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
       { key: 'adopters', label: 'Adopters', heat: 'adopters' },
       { key: 'fosters', label: 'Fosters', heat: 'fosters' },
       { key: 'volunteers', label: 'Volunteers', heat: 'volunteers' },
-      { key: 'donors', label: 'Donors', heat: 'donors' }
+      { key: 'donors', label: 'Donors', heat: 'donors' },
+      { key: 'superfans', label: 'Superfans', heat: 'superfans' }
     ]
   };
   var ALL_NAMES = [];
   ['shelters', 'retail'].forEach(function(p) {
     SUBTOPICS[p].forEach(function(s) { s.layers.forEach(function(n) { if (ALL_NAMES.indexOf(n) === -1) ALL_NAMES.push(n); }); });
   });
-  var HEAT_TOPICS = { adopters: { url: 'adopters_heat.json', label: 'adoptions' }, fosters: { url: 'fosters_heat.json', label: 'foster placements' }, volunteers: { url: 'volunteers_heat.json', label: 'volunteer shifts' }, donors: { url: 'donors_heat.json', label: 'household gifts (year-level data)' } };
+  var HEAT_TOPICS = { adopters: { url: 'adopters_heat.json', label: 'adoptions' }, fosters: { url: 'fosters_heat.json', label: 'foster placements' }, volunteers: { url: 'volunteers_heat.json', label: 'volunteer shifts' }, donors: { url: 'donors_heat.json', label: 'household gifts (year-level data)' }, superfans: { url: 'superfans_heat.json', label: 'combined activity (adopter/foster + volunteer + donor)' } };
 
   function getOverlays() {
     var key = Object.keys(window).find(function(k){ return /^layer_control_.*_layers$/.test(k); });
