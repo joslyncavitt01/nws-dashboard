@@ -314,10 +314,18 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
       if (!bins[key]) bins[key] = { lat: (gx + 0.5) * grid.lat, lon: (gy + 0.5) * grid.lon, sum: 0 };
       bins[key].sum += weights[k];
     });
-    // Use the raw (untransformed) bin sums -- log/sqrt compression flattened the whole metro
-    // into a uniform plateau of deep red with no internal gradient.
-    return Object.keys(bins).map(function(k) { var b = bins[k]; return [b.lat, b.lon, b.sum]; });
+    // A mild sqrt compression on the bin sums (NOT log -- log was tried earlier and flattened
+    // everything into a uniform plateau with no gradient at all). sqrt keeps Austin clearly the
+    // hottest while giving secondary concentrations (Houston, Dallas, San Antonio) enough of the
+    // color range to read as distinct from each other and from true rural background, instead of
+    // every non-Austin location getting crushed into the same low "generic blue" band under a
+    // scale calibrated to Austin's raw peak.
+    return Object.keys(bins).map(function(k) { var b = bins[k]; return [b.lat, b.lon, Math.sqrt(b.sum)]; });
   }
+  // Front-load the color transitions so lower-relative-intensity areas (secondary cities,
+  // suburbs) get real color separation instead of all sitting in the flat pale-blue band below
+  // Leaflet.heat's default 0.4 threshold for showing anything past plain blue.
+  var HEAT_GRADIENT = { 0.12: '#3b4cca', 0.3: '#00b4d8', 0.5: '#90e0ef', 0.72: '#ffd60a', 1: '#e63946' };
   function rebuildHeatLayer() {
     var map = getMap();
     if (!map || !currentWeights || !currentCoords) return;
@@ -325,7 +333,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
     currentHeatPoints = points;
     var max = computeZoomAdjustedMax(map, points);
     if (currentHeatLayer) map.removeLayer(currentHeatLayer);
-    currentHeatLayer = L.heatLayer(points, { radius: HEAT_RADIUS, blur: HEAT_BLUR, maxZoom: 6, max: max }).addTo(map);
+    currentHeatLayer = L.heatLayer(points, { radius: HEAT_RADIUS, blur: HEAT_BLUR, maxZoom: 6, max: max, gradient: HEAT_GRADIENT }).addTo(map);
   }
   function renderHeat() {
     var map = getMap();
