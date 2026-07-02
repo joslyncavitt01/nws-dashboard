@@ -348,7 +348,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
   var HEAT_GRADIENT = { 0.12: '#3b4cca', 0.3: '#00b4d8', 0.5: '#90e0ef', 0.72: '#ffd60a', 1: '#e63946' };
   function rebuildHeatLayer() {
     var map = getMap();
-    if (!map || !currentWeights || !currentCoords) return;
+    if (!map || !currentHeatKey || !currentWeights || !currentCoords) return;
     var points = binWeights(map, currentWeights, currentCoords);
     currentHeatPoints = points;
     var max = computeZoomAdjustedMax(map, points);
@@ -423,6 +423,9 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
     var map = getMap();
     if (currentHeatLayer && map) { map.removeLayer(currentHeatLayer); currentHeatLayer = null; }
     currentHeatKey = null;
+    currentWeights = null;
+    currentCoords = null;
+    currentHeatPoints = null;
     rangePanel.style.display = 'none';
   }
   rangeStartInput.addEventListener('change', function() { renderHeat(); syncActiveQuickButton(); });
