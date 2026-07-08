@@ -235,7 +235,7 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
   ['shelters', 'retail'].forEach(function(p) {
     SUBTOPICS[p].forEach(function(s) { s.layers.forEach(function(n) { if (ALL_NAMES.indexOf(n) === -1) ALL_NAMES.push(n); }); });
   });
-  var HEAT_TOPICS = { adopters: { url: 'adopters_heat.json', label: 'adoptions' }, fosters: { url: 'fosters_heat.json', label: 'foster placements' }, volunteers: { url: 'volunteers_heat.json', label: 'volunteer shifts' }, donors: { url: 'donors_heat.json', label: 'household gifts (year-level data)' } };
+  var HEAT_TOPICS = { adopters: { url: 'adopters_heat.json', label: 'adoptions' }, fosters: { url: 'fosters_heat.json', label: 'foster placements' }, volunteers: { url: 'volunteers_heat.json', label: 'volunteer shifts' }, donors: { url: 'donors_heat.json', label: 'household gifts' } };
 
   function getOverlays() {
     var key = Object.keys(window).find(function(k){ return /^layer_control_.*_layers$/.test(k); });
@@ -266,10 +266,24 @@ body,.leaflet-container{font-family:'Jost',Arial,sans-serif!important;}
     return ny * 100 + nm;
   }
   function dataBounds(data) {
-    var all = data.records.map(function(r){ return r[1]; })
-      .concat(data.otherByMonth.map(function(p){ return p[0]; }))
-      .concat(data.unknownByMonth.map(function(p){ return p[0]; }));
-    return { min: Math.min.apply(null, all), max: Math.max.apply(null, all) };
+    // Math.min/max.apply blows the argument-count limit once a dataset has 100k+ rows
+    // (donors' month-level records hit ~229k) -- reduce with a plain loop instead.
+    var mn = Infinity, mx = -Infinity;
+    function scan(arr, get) {
+      for (var i = 0; i < arr.length; i++) {
+        var v = get(arr[i]);
+        if (v < mn) mn = v;
+        if (v > mx) mx = v;
+      }
+    }
+    scan(data.records, function(r) { return r[1]; });
+    scan(data.otherByMonth, function(p) { return p[0]; });
+    scan(data.unknownByMonth, function(p) { return p[0]; });
+    var now = new Date();
+    var nowYm = now.getFullYear() * 100 + (now.getMonth() + 1);
+    // Some source data (e.g. scheduled-in-advance volunteer shifts) includes future-dated rows.
+    // Cap the range at the current month so "All time" reflects what's actually happened.
+    return { min: mn, max: Math.min(mx, nowYm) };
   }
   function sumInRange(pairs, start, end) {
     var s = 0;
